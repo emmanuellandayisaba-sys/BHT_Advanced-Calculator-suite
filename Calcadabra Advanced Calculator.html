@@ -1,0 +1,1404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calcadabra — Advanced Calculator</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:         #07070d;
+    --surface:    #10101a;
+    --card:       #13121f;
+    --card2:      #1a1828;
+    --border:     rgba(120,100,200,0.18);
+    --burgundy:   #8b1a3a;
+    --burg-light: #c4294f;
+    --indigo:     #3b2a85;
+    --ind-light:  #6c52d9;
+    --ind-glow:   rgba(108,82,217,0.35);
+    --text:       #e8e0ff;
+    --text-dim:   #9588c0;
+    --text-muted: #5a5278;
+    --accent:     #b89aff;
+    --accent2:    #ff6b8a;
+    --green:      #4ade80;
+    --yellow:     #fbbf24;
+    --radius:     14px;
+    --radius-sm:  8px;
+    --sidebar-w:  220px;
+    --transition: 0.22s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  html, body { height: 100%; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── HEADER ── */
+  .app-header {
+    position: relative;
+    padding: 18px 28px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(135deg, rgba(59,42,133,0.18) 0%, rgba(139,26,58,0.14) 100%);
+    backdrop-filter: blur(12px);
+    z-index: 10;
+    flex-shrink: 0;
+  }
+  .header-orb {
+    position: absolute;
+    left: -60px; top: -60px;
+    width: 220px; height: 220px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(108,82,217,0.45) 0%, rgba(139,26,58,0.2) 55%, transparent 72%);
+    filter: blur(30px);
+    pointer-events: none;
+  }
+  .logo-icon {
+    width: 42px; height: 42px;
+    background: linear-gradient(135deg, var(--ind-light), var(--burg-light));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+    box-shadow: 0 0 20px rgba(108,82,217,0.5);
+  }
+  .logo-text { display: flex; flex-direction: column; line-height: 1; }
+  .logo-name {
+    font-size: 1.55rem;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    background: linear-gradient(90deg, #c4b0ff 0%, #ff9eb5 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .logo-sub { font-size: 0.68rem; color: var(--text-muted); letter-spacing: 2.5px; text-transform: uppercase; margin-top: 1px; }
+
+  /* ── LAYOUT ── */
+  .app-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: var(--sidebar-w);
+    flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 18px 10px;
+    gap: 4px;
+    overflow-y: auto;
+  }
+  .sidebar-label {
+    font-size: 0.62rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    padding: 4px 10px 8px;
+    margin-top: 8px;
+  }
+  .sidebar-label:first-child { margin-top: 0; }
+  .nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 0.88rem;
+    cursor: pointer;
+    transition: all var(--transition);
+    text-align: left;
+    width: 100%;
+  }
+  .nav-btn .nav-icon { font-size: 1.05rem; width: 22px; text-align: center; flex-shrink: 0; }
+  .nav-btn:hover { background: rgba(108,82,217,0.12); color: var(--text); }
+  .nav-btn.active {
+    background: linear-gradient(90deg, rgba(108,82,217,0.28), rgba(139,26,58,0.18));
+    color: var(--accent);
+    border: 1px solid rgba(180,150,255,0.2);
+  }
+  .nav-btn.active .nav-icon { color: var(--accent2); }
+
+  /* ── MAIN CONTENT ── */
+  .main {
+    flex: 1;
+    overflow-y: auto;
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  /* ── PANELS ── */
+  .panel { display: none; animation: fadeIn 0.28s ease; max-width: 700px; width: 100%; }
+  .panel.active { display: block; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+
+  .panel-title {
+    font-size: 1.35rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .panel-title span { font-size: 1.5rem; }
+
+  /* ── CARD ── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px;
+    margin-bottom: 16px;
+  }
+  .card-sm { padding: 16px; }
+
+  /* ── CALCULATOR DISPLAY ── */
+  .calc-display {
+    background: #08080f;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin-bottom: 14px;
+    text-align: right;
+    min-height: 90px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+  }
+  .calc-expr {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    min-height: 18px;
+    word-break: break-all;
+  }
+  .calc-result {
+    font-size: 2.6rem;
+    font-weight: 200;
+    color: var(--text);
+    letter-spacing: -1px;
+    word-break: break-all;
+    line-height: 1.1;
+    transition: color 0.15s;
+  }
+  .calc-result.flash { color: var(--accent); }
+
+  /* ── BUTTON GRID ── */
+  .btn-grid {
+    display: grid;
+    gap: 8px;
+  }
+  .btn-grid-4 { grid-template-columns: repeat(4, 1fr); }
+  .btn-grid-5 { grid-template-columns: repeat(5, 1fr); }
+
+  .calc-btn {
+    height: 58px;
+    border: 1px solid rgba(120,100,200,0.15);
+    border-radius: var(--radius-sm);
+    font-size: 1.05rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.12s;
+    position: relative;
+    overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .calc-btn::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: rgba(255,255,255,0);
+    transition: background 0.1s;
+  }
+  .calc-btn:active::after { background: rgba(255,255,255,0.08); }
+  .calc-btn:hover { transform: translateY(-1px); }
+  .calc-btn:active { transform: translateY(0); }
+
+  .btn-num {
+    background: var(--card2);
+    color: var(--text);
+  }
+  .btn-op {
+    background: linear-gradient(135deg, rgba(59,42,133,0.6), rgba(59,42,133,0.4));
+    color: var(--accent);
+    border-color: rgba(108,82,217,0.35);
+  }
+  .btn-fn {
+    background: rgba(30,24,60,0.8);
+    color: var(--text-dim);
+    font-size: 0.82rem;
+  }
+  .btn-eq {
+    background: linear-gradient(135deg, var(--indigo), var(--burgundy));
+    color: #fff;
+    font-size: 1.3rem;
+    font-weight: 600;
+    border-color: transparent;
+    box-shadow: 0 4px 20px rgba(108,82,217,0.4);
+  }
+  .btn-eq:hover { box-shadow: 0 6px 28px rgba(108,82,217,0.6); }
+  .btn-clear {
+    background: linear-gradient(135deg, rgba(139,26,58,0.5), rgba(139,26,58,0.3));
+    color: var(--accent2);
+    border-color: rgba(139,26,58,0.4);
+  }
+  .btn-span2 { grid-column: span 2; }
+
+  /* Scientific toggle */
+  .sci-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .toggle-switch {
+    width: 42px; height: 22px;
+    background: var(--card2);
+    border-radius: 11px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    position: relative;
+    transition: background 0.2s;
+  }
+  .toggle-switch.on { background: linear-gradient(90deg, var(--indigo), var(--ind-light)); }
+  .toggle-switch::after {
+    content: '';
+    position: absolute;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    top: 2px; left: 2px;
+    transition: left 0.2s;
+  }
+  .toggle-switch.on::after { left: 22px; }
+  .toggle-label { font-size: 0.82rem; color: var(--text-dim); }
+
+  .sci-row { display: none; }
+  .sci-row.visible { display: grid; }
+
+  /* ── FORM ELEMENTS ── */
+  .form-group { margin-bottom: 14px; }
+  .form-label {
+    display: block;
+    font-size: 0.78rem;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .form-input {
+    width: 100%;
+    padding: 11px 14px;
+    background: #08080f;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: 0.95rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.18s, box-shadow 0.18s;
+  }
+  .form-input:focus {
+    border-color: var(--ind-light);
+    box-shadow: 0 0 0 3px rgba(108,82,217,0.18);
+  }
+  .form-input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.7) sepia(1) hue-rotate(220deg);
+    cursor: pointer;
+  }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* ── BUTTONS ── */
+  .btn {
+    padding: 11px 22px;
+    border-radius: var(--radius-sm);
+    border: none;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition);
+    letter-spacing: 0.3px;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--indigo) 0%, var(--burgundy) 100%);
+    color: #fff;
+    box-shadow: 0 4px 18px rgba(108,82,217,0.35);
+  }
+  .btn-primary:hover { box-shadow: 0 6px 24px rgba(108,82,217,0.55); transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+  }
+  .btn-ghost:hover { border-color: var(--ind-light); color: var(--accent); }
+
+  /* ── RESULT DISPLAY ── */
+  .result-box {
+    background: linear-gradient(135deg, rgba(59,42,133,0.2), rgba(139,26,58,0.15));
+    border: 1px solid rgba(180,150,255,0.2);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    margin-top: 14px;
+    display: none;
+  }
+  .result-box.show { display: block; }
+  .result-value {
+    font-size: 2rem;
+    font-weight: 200;
+    color: var(--accent);
+    letter-spacing: -0.5px;
+    margin-bottom: 4px;
+  }
+  .result-label { font-size: 0.82rem; color: var(--text-muted); }
+  .result-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
+  .result-item { }
+  .result-item .rv { font-size: 1.4rem; font-weight: 300; color: var(--accent); }
+  .result-item .rl { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+
+  /* BMI bar */
+  .bmi-bar {
+    height: 8px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, #60a5fa 0%, var(--green) 25%, var(--yellow) 55%, #f97316 75%, #ef4444 100%);
+    margin: 10px 0;
+    position: relative;
+  }
+  .bmi-marker {
+    position: absolute;
+    top: -4px;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    border: 3px solid var(--ind-light);
+    transform: translateX(-50%);
+    transition: left 0.5s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: 0 0 8px rgba(108,82,217,0.6);
+  }
+  .bmi-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.68rem;
+    color: var(--text-muted);
+  }
+
+  /* ── GPA CALCULATOR ── */
+  .course-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto auto;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+    animation: fadeIn 0.2s ease;
+  }
+  .course-grade-select {
+    padding: 8px 10px;
+    background: #08080f;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.88rem;
+    outline: none;
+    cursor: pointer;
+  }
+  .course-grade-select:focus { border-color: var(--ind-light); }
+  .credit-input {
+    width: 60px;
+    padding: 8px;
+    background: #08080f;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: 0.88rem;
+    text-align: center;
+    outline: none;
+  }
+  .credit-input:focus { border-color: var(--ind-light); }
+  .remove-btn {
+    width: 30px; height: 30px;
+    border-radius: 6px;
+    border: 1px solid rgba(139,26,58,0.4);
+    background: rgba(139,26,58,0.15);
+    color: var(--accent2);
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .remove-btn:hover { background: rgba(139,26,58,0.35); }
+  .gpa-result {
+    font-size: 3.5rem;
+    font-weight: 100;
+    color: var(--accent);
+    letter-spacing: -2px;
+    text-align: center;
+    padding: 10px 0;
+  }
+  .gpa-label { text-align: center; font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.5px; }
+
+  /* ── HISTORY ── */
+  .history-panel {
+    width: 260px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 18px 14px;
+  }
+  .history-title {
+    font-size: 0.72rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .history-clear-btn {
+    font-size: 0.7rem;
+    background: none;
+    border: none;
+    color: var(--burg-light);
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: background 0.15s;
+  }
+  .history-clear-btn:hover { background: rgba(139,26,58,0.2); }
+  .history-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .history-item {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .history-item:hover { border-color: rgba(108,82,217,0.4); background: var(--card2); }
+  .history-expr { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 3px; word-break: break-all; }
+  .history-val { font-size: 1rem; font-weight: 300; color: var(--text); }
+  .history-time { font-size: 0.65rem; color: var(--text-muted); margin-top: 3px; }
+  .history-empty { font-size: 0.8rem; color: var(--text-muted); text-align: center; margin-top: 30px; }
+
+  /* ── PERCENTAGE ── */
+  .perc-tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+  .perc-tab {
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .perc-tab.active {
+    background: linear-gradient(90deg, rgba(59,42,133,0.5), rgba(139,26,58,0.4));
+    color: var(--accent);
+    border-color: rgba(180,150,255,0.25);
+  }
+  .perc-mode { display: none; }
+  .perc-mode.active { display: block; }
+
+  /* ── MOBILE BOTTOM NAV ── */
+  .mobile-nav {
+    display: none;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 8px 4px;
+    z-index: 100;
+    overflow-x: auto;
+    gap: 2px;
+    flex-wrap: nowrap;
+  }
+  .mobile-nav-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 10px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.6rem;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.15s;
+    white-space: nowrap;
+    min-width: 56px;
+  }
+  .mobile-nav-btn .m-icon { font-size: 1.2rem; }
+  .mobile-nav-btn.active { color: var(--accent); background: rgba(108,82,217,0.12); }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(108,82,217,0.35); border-radius: 3px; }
+
+  /* ── CHIP BADGE ── */
+  .chip {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+  .chip-green { background: rgba(74,222,128,0.15); color: var(--green); border: 1px solid rgba(74,222,128,0.25); }
+  .chip-yellow { background: rgba(251,191,36,0.15); color: var(--yellow); border: 1px solid rgba(251,191,36,0.25); }
+  .chip-orange { background: rgba(249,115,22,0.15); color: #f97316; border: 1px solid rgba(249,115,22,0.25); }
+  .chip-red { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.25); }
+  .chip-blue { background: rgba(96,165,250,0.15); color: #60a5fa; border: 1px solid rgba(96,165,250,0.25); }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 900px) {
+    .history-panel { display: none; }
+  }
+  @media (max-width: 680px) {
+    .sidebar { display: none; }
+    .mobile-nav { display: flex; }
+    .main { padding: 16px 14px 90px; }
+    .app-header { padding: 14px 16px; }
+    .logo-name { font-size: 1.3rem; }
+    .form-row { grid-template-columns: 1fr; }
+    .btn-grid-5 { grid-template-columns: repeat(4, 1fr); }
+    .sci-row.visible { grid-template-columns: repeat(4, 1fr); }
+    .course-row { grid-template-columns: 1fr auto auto auto; }
+  }
+
+  /* ── DIVIDER ── */
+  .divider { height: 1px; background: var(--border); margin: 16px 0; }
+
+  /* ── ADD COURSE BTN ── */
+  .add-course-btn {
+    width: 100%;
+    padding: 9px;
+    border: 1px dashed rgba(108,82,217,0.4);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--ind-light);
+    font-family: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-bottom: 14px;
+  }
+  .add-course-btn:hover { background: rgba(108,82,217,0.1); border-color: var(--ind-light); }
+
+  /* history panel panel view */
+  #panel-history .history-list-full { max-height: 400px; overflow-y: auto; }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="header-orb"></div>
+  <div class="logo-icon">✦</div>
+  <div class="logo-text">
+    <span class="logo-name">Calcadabra</span>
+    <span class="logo-sub">Advanced Calculator</span>
+  </div>
+</header>
+
+<div class="app-body">
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <span class="sidebar-label">Calculators</span>
+    <button class="nav-btn active" onclick="switchPanel('standard')" id="nav-standard">
+      <span class="nav-icon">🔢</span> Standard
+    </button>
+    <button class="nav-btn" onclick="switchPanel('scientific')" id="nav-scientific">
+      <span class="nav-icon">🔬</span> Scientific
+    </button>
+    <span class="sidebar-label">Lifestyle</span>
+    <button class="nav-btn" onclick="switchPanel('age')" id="nav-age">
+      <span class="nav-icon">🎂</span> Age
+    </button>
+    <button class="nav-btn" onclick="switchPanel('date')" id="nav-date">
+      <span class="nav-icon">📅</span> Date Diff
+    </button>
+    <button class="nav-btn" onclick="switchPanel('bmi')" id="nav-bmi">
+      <span class="nav-icon">⚖️</span> BMI
+    </button>
+    <span class="sidebar-label">Finance</span>
+    <button class="nav-btn" onclick="switchPanel('percentage')" id="nav-percentage">
+      <span class="nav-icon">%</span> Percentage
+    </button>
+    <button class="nav-btn" onclick="switchPanel('discount')" id="nav-discount">
+      <span class="nav-icon">🏷️</span> Discount
+    </button>
+    <span class="sidebar-label">Academic</span>
+    <button class="nav-btn" onclick="switchPanel('gpa')" id="nav-gpa">
+      <span class="nav-icon">🎓</span> GPA
+    </button>
+    <span class="sidebar-label">Other</span>
+    <button class="nav-btn" onclick="switchPanel('history')" id="nav-history">
+      <span class="nav-icon">🕓</span> History
+    </button>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- ═══ STANDARD CALCULATOR ═══ -->
+    <section class="panel active" id="panel-standard">
+      <div class="panel-title"><span>🔢</span> Standard Calculator</div>
+      <div class="card">
+        <div class="calc-display">
+          <div class="calc-expr" id="std-expr"></div>
+          <div class="calc-result" id="std-result">0</div>
+        </div>
+        <div class="btn-grid btn-grid-4">
+          <button class="calc-btn btn-clear" onclick="stdClear()">C</button>
+          <button class="calc-btn btn-fn"    onclick="stdToggleSign()">±</button>
+          <button class="calc-btn btn-fn"    onclick="stdPercent()">%</button>
+          <button class="calc-btn btn-op"    onclick="stdOp('/')">÷</button>
+
+          <button class="calc-btn btn-num" onclick="stdNum('7')">7</button>
+          <button class="calc-btn btn-num" onclick="stdNum('8')">8</button>
+          <button class="calc-btn btn-num" onclick="stdNum('9')">9</button>
+          <button class="calc-btn btn-op"  onclick="stdOp('*')">×</button>
+
+          <button class="calc-btn btn-num" onclick="stdNum('4')">4</button>
+          <button class="calc-btn btn-num" onclick="stdNum('5')">5</button>
+          <button class="calc-btn btn-num" onclick="stdNum('6')">6</button>
+          <button class="calc-btn btn-op"  onclick="stdOp('-')">−</button>
+
+          <button class="calc-btn btn-num" onclick="stdNum('1')">1</button>
+          <button class="calc-btn btn-num" onclick="stdNum('2')">2</button>
+          <button class="calc-btn btn-num" onclick="stdNum('3')">3</button>
+          <button class="calc-btn btn-op"  onclick="stdOp('+')">+</button>
+
+          <button class="calc-btn btn-num btn-span2" onclick="stdNum('0')">0</button>
+          <button class="calc-btn btn-num" onclick="stdDot()">.</button>
+          <button class="calc-btn btn-eq"  onclick="stdEquals()">=</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ SCIENTIFIC CALCULATOR ═══ -->
+    <section class="panel" id="panel-scientific">
+      <div class="panel-title"><span>🔬</span> Scientific Calculator</div>
+      <div class="card">
+        <div class="calc-display">
+          <div class="calc-expr" id="sci-expr"></div>
+          <div class="calc-result" id="sci-result">0</div>
+        </div>
+        <div class="btn-grid btn-grid-4" style="margin-bottom:8px;">
+          <!-- Sci row 1 -->
+          <button class="calc-btn btn-fn" onclick="sciFunc('sin')">sin</button>
+          <button class="calc-btn btn-fn" onclick="sciFunc('cos')">cos</button>
+          <button class="calc-btn btn-fn" onclick="sciFunc('tan')">tan</button>
+          <button class="calc-btn btn-fn" onclick="sciFunc('log')">log</button>
+
+          <button class="calc-btn btn-fn" onclick="sciFunc('sqrt')">√</button>
+          <button class="calc-btn btn-fn" onclick="sciFunc('sq')">x²</button>
+          <button class="calc-btn btn-fn" onclick="sciInsert('Math.PI')">π</button>
+          <button class="calc-btn btn-fn" onclick="sciInsert('Math.E')">e</button>
+
+          <button class="calc-btn btn-fn" onclick="sciFunc('ln')">ln</button>
+          <button class="calc-btn btn-fn" onclick="sciInsert('**')">xʸ</button>
+          <button class="calc-btn btn-fn" onclick="sciInsert('(')"> ( </button>
+          <button class="calc-btn btn-fn" onclick="sciInsert(')')"> ) </button>
+        </div>
+        <div class="btn-grid btn-grid-4">
+          <button class="calc-btn btn-clear" onclick="sciClear()">C</button>
+          <button class="calc-btn btn-fn"    onclick="sciBackspace()">⌫</button>
+          <button class="calc-btn btn-fn"    onclick="sciFunc('pct')">%</button>
+          <button class="calc-btn btn-op"    onclick="sciInsert('/')">÷</button>
+
+          <button class="calc-btn btn-num" onclick="sciInsert('7')">7</button>
+          <button class="calc-btn btn-num" onclick="sciInsert('8')">8</button>
+          <button class="calc-btn btn-num" onclick="sciInsert('9')">9</button>
+          <button class="calc-btn btn-op"  onclick="sciInsert('*')">×</button>
+
+          <button class="calc-btn btn-num" onclick="sciInsert('4')">4</button>
+          <button class="calc-btn btn-num" onclick="sciInsert('5')">5</button>
+          <button class="calc-btn btn-num" onclick="sciInsert('6')">6</button>
+          <button class="calc-btn btn-op"  onclick="sciInsert('-')">−</button>
+
+          <button class="calc-btn btn-num" onclick="sciInsert('1')">1</button>
+          <button class="calc-btn btn-num" onclick="sciInsert('2')">2</button>
+          <button class="calc-btn btn-num" onclick="sciInsert('3')">3</button>
+          <button class="calc-btn btn-op"  onclick="sciInsert('+')">+</button>
+
+          <button class="calc-btn btn-num btn-span2" onclick="sciInsert('0')">0</button>
+          <button class="calc-btn btn-num" onclick="sciInsert('.')">.</button>
+          <button class="calc-btn btn-eq"  onclick="sciEquals()">=</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ AGE CALCULATOR ═══ -->
+    <section class="panel" id="panel-age">
+      <div class="panel-title"><span>🎂</span> Age Calculator</div>
+      <div class="card">
+        <div class="form-group">
+          <label class="form-label">Date of Birth</label>
+          <input type="date" class="form-input" id="age-dob">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Calculate As Of</label>
+          <input type="date" class="form-input" id="age-today">
+        </div>
+        <button class="btn btn-primary" onclick="calcAge()">Calculate Age</button>
+        <div class="result-box" id="age-result">
+          <div class="result-grid">
+            <div class="result-item"><div class="rv" id="age-years">—</div><div class="rl">Years</div></div>
+            <div class="result-item"><div class="rv" id="age-months">—</div><div class="rl">Months</div></div>
+            <div class="result-item"><div class="rv" id="age-days">—</div><div class="rl">Days</div></div>
+          </div>
+          <div class="divider"></div>
+          <div style="font-size:0.82rem;color:var(--text-muted)" id="age-extra"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ DATE DIFFERENCE ═══ -->
+    <section class="panel" id="panel-date">
+      <div class="panel-title"><span>📅</span> Date Difference</div>
+      <div class="card">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Start Date</label>
+            <input type="date" class="form-input" id="date-start">
+          </div>
+          <div class="form-group">
+            <label class="form-label">End Date</label>
+            <input type="date" class="form-input" id="date-end">
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="calcDateDiff()">Calculate Difference</button>
+        <div class="result-box" id="date-result">
+          <div class="result-grid">
+            <div class="result-item"><div class="rv" id="diff-days">—</div><div class="rl">Days</div></div>
+            <div class="result-item"><div class="rv" id="diff-weeks">—</div><div class="rl">Weeks</div></div>
+            <div class="result-item"><div class="rv" id="diff-months">—</div><div class="rl">Months</div></div>
+          </div>
+          <div class="divider"></div>
+          <div style="font-size:0.82rem;color:var(--text-muted)" id="diff-extra"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ BMI CALCULATOR ═══ -->
+    <section class="panel" id="panel-bmi">
+      <div class="panel-title"><span>⚖️</span> BMI Calculator</div>
+      <div class="card">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Weight (kg)</label>
+            <input type="number" class="form-input" id="bmi-weight" placeholder="e.g. 70" min="1">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Height (cm)</label>
+            <input type="number" class="form-input" id="bmi-height" placeholder="e.g. 175" min="1">
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="calcBMI()">Calculate BMI</button>
+        <div class="result-box" id="bmi-result">
+          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+            <div>
+              <div class="result-value" id="bmi-score">—</div>
+              <div class="result-label">Body Mass Index</div>
+            </div>
+            <div id="bmi-chip"></div>
+          </div>
+          <div class="bmi-bar" style="margin-top:14px;">
+            <div class="bmi-marker" id="bmi-marker" style="left:0%"></div>
+          </div>
+          <div class="bmi-labels">
+            <span>Under</span><span>Normal</span><span>Over</span><span>Obese</span>
+          </div>
+          <div style="font-size:0.8rem;color:var(--text-muted);margin-top:10px;" id="bmi-desc"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ PERCENTAGE CALCULATOR ═══ -->
+    <section class="panel" id="panel-percentage">
+      <div class="panel-title"><span>%</span> Percentage Calculator</div>
+      <div class="card">
+        <div class="perc-tabs">
+          <button class="perc-tab active" onclick="setPercMode(0)">X% of Y</button>
+          <button class="perc-tab" onclick="setPercMode(1)">X is what % of Y</button>
+          <button class="perc-tab" onclick="setPercMode(2)">% change</button>
+        </div>
+
+        <div class="perc-mode active" id="perc-0">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Percentage (%)</label>
+              <input type="number" class="form-input" id="p0-pct" placeholder="e.g. 20">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Of Value</label>
+              <input type="number" class="form-input" id="p0-val" placeholder="e.g. 500">
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="calcPerc0()">Calculate</button>
+          <div class="result-box" id="p0-result">
+            <div class="result-value" id="p0-ans">—</div>
+            <div class="result-label" id="p0-lbl"></div>
+          </div>
+        </div>
+
+        <div class="perc-mode" id="perc-1">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Value (X)</label>
+              <input type="number" class="form-input" id="p1-x" placeholder="e.g. 45">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Of Total (Y)</label>
+              <input type="number" class="form-input" id="p1-y" placeholder="e.g. 200">
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="calcPerc1()">Calculate</button>
+          <div class="result-box" id="p1-result">
+            <div class="result-value" id="p1-ans">—</div>
+            <div class="result-label" id="p1-lbl"></div>
+          </div>
+        </div>
+
+        <div class="perc-mode" id="perc-2">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Original Value</label>
+              <input type="number" class="form-input" id="p2-orig" placeholder="e.g. 80">
+            </div>
+            <div class="form-group">
+              <label class="form-label">New Value</label>
+              <input type="number" class="form-input" id="p2-new" placeholder="e.g. 100">
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="calcPerc2()">Calculate</button>
+          <div class="result-box" id="p2-result">
+            <div class="result-value" id="p2-ans">—</div>
+            <div class="result-label" id="p2-lbl"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ DISCOUNT CALCULATOR ═══ -->
+    <section class="panel" id="panel-discount">
+      <div class="panel-title"><span>🏷️</span> Discount Calculator</div>
+      <div class="card">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Original Price</label>
+            <input type="number" class="form-input" id="disc-price" placeholder="e.g. 1200">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Discount (%)</label>
+            <input type="number" class="form-input" id="disc-pct" placeholder="e.g. 25" max="100">
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="calcDiscount()">Calculate Discount</button>
+        <div class="result-box" id="disc-result">
+          <div class="result-grid">
+            <div class="result-item">
+              <div class="rv" id="disc-final">—</div>
+              <div class="rl">Final Price</div>
+            </div>
+            <div class="result-item">
+              <div class="rv" id="disc-saved">—</div>
+              <div class="rl">You Save</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ GPA CALCULATOR ═══ -->
+    <section class="panel" id="panel-gpa">
+      <div class="panel-title"><span>🎓</span> GPA Calculator</div>
+      <div class="card">
+        <div id="gpa-courses"></div>
+        <button class="add-course-btn" onclick="addCourse()">+ Add Course</button>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="calcGPA()">Calculate GPA</button>
+          <button class="btn btn-ghost" onclick="clearGPA()">Clear All</button>
+        </div>
+        <div class="result-box" id="gpa-result">
+          <div class="gpa-result" id="gpa-value">0.00</div>
+          <div class="gpa-label">Cumulative GPA</div>
+          <div class="divider"></div>
+          <div class="result-grid" style="text-align:center;">
+            <div class="result-item"><div class="rv" id="gpa-credits">0</div><div class="rl">Total Credits</div></div>
+            <div class="result-item"><div class="rv" id="gpa-points">0</div><div class="rl">Grade Points</div></div>
+          </div>
+          <div style="text-align:center;margin-top:10px;" id="gpa-chip"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ HISTORY PANEL ═══ -->
+    <section class="panel" id="panel-history">
+      <div class="panel-title"><span>🕓</span> Calculation History</div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+          <span style="font-size:0.82rem;color:var(--text-muted)">Saved to Local Storage — persists across reloads</span>
+          <button class="btn btn-ghost" style="padding:6px 14px;font-size:0.8rem;" onclick="clearHistory()">Clear All</button>
+        </div>
+        <div id="history-main-list" class="history-list history-list-full"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- HISTORY SIDEBAR -->
+  <aside class="history-panel">
+    <div class="history-title">
+      Recent History
+      <button class="history-clear-btn" onclick="clearHistory()">Clear</button>
+    </div>
+    <div class="history-list" id="history-sidebar"></div>
+  </aside>
+
+</div>
+
+<!-- MOBILE NAV -->
+<nav class="mobile-nav" id="mobile-nav">
+  <button class="mobile-nav-btn active" onclick="switchPanel('standard')" id="mnav-standard"><span class="m-icon">🔢</span>Std</button>
+  <button class="mobile-nav-btn" onclick="switchPanel('scientific')" id="mnav-scientific"><span class="m-icon">🔬</span>Sci</button>
+  <button class="mobile-nav-btn" onclick="switchPanel('age')" id="mnav-age"><span class="m-icon">🎂</span>Age</button>
+  <button class="mobile-nav-btn" onclick="switchPanel('date')" id="mnav-date"><span class="m-icon">📅</span>Date</button>
+  <button class="mobile-nav-btn" onclick="switchPanel('bmi')" id="mnav-bmi"><span class="m-icon">⚖️</span>BMI</button>
+  <button class="mobile-nav-btn" onclick="switchPanel('percentage')" id="mnav-percentage"><span class="m-icon">%</span>Pct</button>
+  <button class="mobile-nav-btn" onclick="switchPanel('discount')" id="mnav-discount"><span class="m-icon">🏷️</span>Sale</button>
+  <button class="mobile-nav-btn" onclick="switchPanel('gpa')" id="mnav-gpa"><span class="m-icon">🎓</span>GPA</button>
+  <button class="mobile-nav-btn" onclick="switchPanel('history')" id="mnav-history"><span class="m-icon">🕓</span>History</button>
+</nav>
+
+<script>
+// ════════════════════════════════════════════════════
+//  NAVIGATION
+// ════════════════════════════════════════════════════
+function switchPanel(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.mobile-nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('active');
+  const nb = document.getElementById('nav-' + id);
+  if (nb) nb.classList.add('active');
+  const mb = document.getElementById('mnav-' + id);
+  if (mb) mb.classList.add('active');
+}
+
+// ════════════════════════════════════════════════════
+//  HISTORY
+// ════════════════════════════════════════════════════
+function getHistory() {
+  try { return JSON.parse(localStorage.getItem('calcadabra_history') || '[]'); } catch { return []; }
+}
+function saveHistory(h) {
+  try { localStorage.setItem('calcadabra_history', JSON.stringify(h)); } catch {}
+}
+function addToHistory(expr, val, type) {
+  const h = getHistory();
+  h.unshift({ expr, val, type, time: new Date().toLocaleString() });
+  if (h.length > 100) h.pop();
+  saveHistory(h);
+  renderHistory();
+}
+function renderHistory() {
+  const h = getHistory();
+  const containers = [document.getElementById('history-sidebar'), document.getElementById('history-main-list')];
+  containers.forEach(el => {
+    if (!el) return;
+    if (h.length === 0) {
+      el.innerHTML = '<div class="history-empty">No calculations yet.<br>Results will appear here.</div>';
+      return;
+    }
+    el.innerHTML = h.map((item, i) => `
+      <div class="history-item">
+        <div class="history-expr">${escHtml(item.expr)}</div>
+        <div class="history-val">${escHtml(String(item.val))}</div>
+        <div class="history-time">${item.time}${item.type ? ' · ' + item.type : ''}</div>
+      </div>
+    `).join('');
+  });
+}
+function clearHistory() {
+  if (!confirm('Clear all history?')) return;
+  saveHistory([]);
+  renderHistory();
+}
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ════════════════════════════════════════════════════
+//  STANDARD CALCULATOR
+// ════════════════════════════════════════════════════
+let stdState = { current: '0', previous: null, op: null, reset: false };
+
+function stdDisplay(val, expr) {
+  document.getElementById('std-result').textContent = val;
+  document.getElementById('std-expr').textContent = expr || '';
+}
+function stdFlash() {
+  const el = document.getElementById('std-result');
+  el.classList.add('flash');
+  setTimeout(() => el.classList.remove('flash'), 300);
+}
+function stdNum(d) {
+  if (stdState.reset) { stdState.current = d; stdState.reset = false; }
+  else stdState.current = stdState.current === '0' ? d : stdState.current + d;
+  stdDisplay(stdState.current, stdState.previous != null ? stdState.previous + ' ' + opSym(stdState.op) : '');
+}
+function stdDot() {
+  if (stdState.reset) { stdState.current = '0.'; stdState.reset = false; }
+  else if (!stdState.current.includes('.')) stdState.current += '.';
+  stdDisplay(stdState.current);
+}
+function stdOp(op) {
+  if (stdState.previous != null && !stdState.reset) {
+    const res = doMath(parseFloat(stdState.previous), parseFloat(stdState.current), stdState.op);
+    stdState.previous = String(res);
+    stdState.current = String(res);
+    stdDisplay(fmtNum(res), String(res) + ' ' + opSym(op));
+  } else {
+    stdState.previous = stdState.current;
+    stdDisplay(stdState.current, stdState.current + ' ' + opSym(op));
+  }
+  stdState.op = op;
+  stdState.reset = true;
+}
+function stdEquals() {
+  if (stdState.op == null || stdState.previous == null) return;
+  const a = parseFloat(stdState.previous), b = parseFloat(stdState.current);
+  const res = doMath(a, b, stdState.op);
+  const expr = `${fmtNum(a)} ${opSym(stdState.op)} ${fmtNum(b)} =`;
+  stdDisplay(fmtNum(res), expr);
+  stdFlash();
+  addToHistory(expr, fmtNum(res), 'Standard');
+  stdState = { current: String(res), previous: null, op: null, reset: true };
+}
+function stdClear() { stdState = { current: '0', previous: null, op: null, reset: false }; stdDisplay('0', ''); }
+function stdToggleSign() { stdState.current = String(-parseFloat(stdState.current)); stdDisplay(stdState.current); }
+function stdPercent() { stdState.current = String(parseFloat(stdState.current) / 100); stdDisplay(stdState.current); }
+function doMath(a, b, op) {
+  if (op === '+') return a + b;
+  if (op === '-') return a - b;
+  if (op === '*') return a * b;
+  if (op === '/') return b !== 0 ? a / b : NaN;
+  return b;
+}
+function opSym(op) { return {'+':'+','-':'−','*':'×','/':'÷'}[op] || op; }
+function fmtNum(n) {
+  if (isNaN(n)) return 'Error';
+  if (!isFinite(n)) return n > 0 ? '∞' : '-∞';
+  if (Math.abs(n) > 1e14 || (Math.abs(n) < 1e-7 && n !== 0)) return n.toExponential(6);
+  const s = parseFloat(n.toPrecision(12));
+  return String(s);
+}
+
+// Keyboard support for standard calculator
+document.addEventListener('keydown', e => {
+  const active = document.querySelector('.panel.active');
+  if (!active) return;
+  const id = active.id;
+  if (id !== 'panel-standard' && id !== 'panel-scientific') return;
+  const isSci = id === 'panel-scientific';
+  if ('0123456789'.includes(e.key)) { isSci ? sciInsert(e.key) : stdNum(e.key); }
+  else if (e.key === '.') { isSci ? sciInsert('.') : stdDot(); }
+  else if (e.key === '+') { isSci ? sciInsert('+') : stdOp('+'); }
+  else if (e.key === '-') { isSci ? sciInsert('-') : stdOp('-'); }
+  else if (e.key === '*') { isSci ? sciInsert('*') : stdOp('*'); }
+  else if (e.key === '/') { e.preventDefault(); isSci ? sciInsert('/') : stdOp('/'); }
+  else if (e.key === 'Enter' || e.key === '=') { isSci ? sciEquals() : stdEquals(); }
+  else if (e.key === 'Escape' || e.key === 'c' || e.key === 'C') { isSci ? sciClear() : stdClear(); }
+  else if (e.key === 'Backspace') { if (isSci) sciBackspace(); }
+});
+
+// ════════════════════════════════════════════════════
+//  SCIENTIFIC CALCULATOR
+// ════════════════════════════════════════════════════
+let sciExpr = '';
+let sciLastResult = '';
+
+function sciDisplay() {
+  document.getElementById('sci-expr').textContent = sciExpr
+    .replace(/Math\.PI/g, 'π')
+    .replace(/Math\.E/g, 'e')
+    .replace(/\*\*/g, '^')
+    .replace(/\*/g, '×')
+    .replace(/\//g, '÷');
+  document.getElementById('sci-result').textContent = sciLastResult || '0';
+}
+function sciInsert(ch) { sciExpr += ch; sciDisplay(); }
+function sciClear() { sciExpr = ''; sciLastResult = ''; sciDisplay(); }
+function sciBackspace() { sciExpr = sciExpr.slice(0, -1); sciDisplay(); }
+function sciFunc(fn) {
+  const cur = parseFloat(sciLastResult) || 0;
+  if (fn === 'sin')  { sciExpr = `Math.sin(${sciExpr || cur})`; }
+  else if (fn === 'cos') { sciExpr = `Math.cos(${sciExpr || cur})`; }
+  else if (fn === 'tan') { sciExpr = `Math.tan(${sciExpr || cur})`; }
+  else if (fn === 'log') { sciExpr = `Math.log10(${sciExpr || cur})`; }
+  else if (fn === 'ln')  { sciExpr = `Math.log(${sciExpr || cur})`; }
+  else if (fn === 'sqrt'){ sciExpr = `Math.sqrt(${sciExpr || cur})`; }
+  else if (fn === 'sq')  { sciExpr = `(${sciExpr || cur})**2`; }
+  else if (fn === 'pct') { sciExpr = `(${sciExpr || cur})/100`; }
+  sciDisplay();
+}
+function sciEquals() {
+  if (!sciExpr.trim()) return;
+  let display = sciExpr.replace(/Math\.PI/g,'π').replace(/Math\.E/g,'e').replace(/\*\*/g,'^').replace(/\*/g,'×').replace(/\//g,'÷');
+  try {
+    // Safe eval using Function
+    const result = Function('"use strict"; const Math=globalThis.Math; return (' + sciExpr + ')')();
+    if (typeof result !== 'number' || !isFinite(result)) throw new Error();
+    sciLastResult = fmtNum(result);
+    document.getElementById('sci-result').textContent = sciLastResult;
+    document.getElementById('sci-expr').textContent = display + ' =';
+    const el = document.getElementById('sci-result');
+    el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 300);
+    addToHistory(display + ' =', sciLastResult, 'Scientific');
+    sciExpr = sciLastResult;
+  } catch {
+    sciLastResult = 'Error';
+    document.getElementById('sci-result').textContent = 'Error';
+    sciExpr = '';
+  }
+}
+
+// ════════════════════════════════════════════════════
+//  AGE CALCULATOR
+// ════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  const today = new Date();
+  document.getElementById('age-today').value = today.toISOString().split('T')[0];
+});
+function calcAge() {
+  const dob = new Date(document.getElementById('age-dob').value);
+  const ref = new Date(document.getElementById('age-today').value);
+  if (!document.getElementById('age-dob').value || isNaN(dob)) { alert('Please enter a valid date of birth.'); return; }
+  if (ref < dob) { alert('Reference date must be after date of birth.'); return; }
+
+  let years = ref.getFullYear() - dob.getFullYear();
+  let months = ref.getMonth() - dob.getMonth();
+  let days = ref.getDate() - dob.getDate();
+
+  if (days < 0) { months--; const prevMonth = new Date(ref.getFullYear(), ref.getMonth(), 0); days += prevMonth.getDate(); }
+  if (months < 0) { years--; months += 12; }
+
+  const totalDays = Math.floor((ref - dob) / 86400000);
+  const totalWeeks = Math.floor(totalDays / 7);
+  const totalMonths = years * 12 + months;
+
+  document.getElementById('age-years').textContent = years;
+  document.getElementById('age-months').textContent = months;
+  document.getElementById('age-days').textContent = days;
+  document.getElementById('age-extra').textContent = `Total: ${totalDays.toLocaleString()} days · ${totalWeeks.toLocaleString()} weeks · ${totalMonths.toLocaleString()} months`;
+
+  const res = document.getElementById('age-result');
+  res.classList.add('show');
+  addToHistory(`Age from ${document.getElementById('age-dob').value}`, `${years}y ${months}m ${days}d`, 'Age');
+}
+
+// ════════════════════════════════════════════════════
+//  DATE DIFFERENCE
+// ════════════════════════════════════════════════════
+function calcDateDiff() {
+  const s = new Date(document.getElementById('date-start').value);
+  const e = new Date(document.getElementById('date-end').value);
+  if (!document.getElementById('date-start').value || !document.getElementById('date-end').value) { alert('Please select both dates.'); return; }
+  const diff = Math.abs(e - s);
+  const days = Math.floor(diff / 86400000);
+  const weeks = (diff / (7 * 86400000)).toFixed(2);
+  const months = (diff / (30.44 * 86400000)).toFixed(2);
+
+  document.getElementById('diff-days').textContent = days.toLocaleString();
+  document.getElementById('diff-weeks').textContent = weeks;
+  document.getElementById('diff-months').textContent = months;
+  const earlier = s < e ? document.getElementById('date-start').value : document.getElementById('date-end').value;
+  const later   = s < e ? document.getElementById('date-end').value   : document.getElementById('date-start').value;
+  document.getElementById('diff-extra').textContent = `From ${earlier} to ${later}`;
+  document.getElementById('date-result').classList.add('show');
+  addToHistory(`${earlier} → ${later}`, `${days} days`, 'Date Diff');
+}
+
+// ════════════════════════════════════════════════════
+//  BMI CALCULATOR
+// ════════════════════════════════════════════════════
+function calcBMI() {
+  const w = parseFloat(document.getElementById('bmi-weight').value);
+  const h = parseFloat(document.getElementById('bmi-height').value) / 100;
+  if (!w || !h || w <= 0 || h <= 0) { alert('Please enter valid weight and height.'); return; }
+  const bmi = w / (h * h);
+  const score = bmi.toFixed(1);
+
+  let cat, chipCls, desc, pct;
+  if (bmi < 18.5) { cat = 'Underweight'; chipCls = 'chip-blue'; desc = 'BMI below 18.5 indicates underweight. Consider consulting a healthcare provider.'; pct = (bmi / 18.5) * 15; }
+  else if (bmi < 25) { cat = 'Normal'; chipCls = 'chip-green'; desc = 'BMI between 18.5–24.9 is considered a healthy weight range.'; pct = 15 + ((bmi - 18.5) / 6.5) * 30; }
+  else if (bmi < 30) { cat = 'Overweight'; chipCls = 'chip-yellow'; desc = 'BMI between 25–29.9 indicates overweight. Lifestyle adjustments may help.'; pct = 45 + ((bmi - 25) / 5) * 25; }
+  else { cat = 'Obese'; chipCls = 'chip-red'; desc = 'BMI of 30 or above indicates obesity. Consult a healthcare professional.'; pct = Math.min(70 + ((bmi - 30) / 10) * 28, 96); }
+
+  document.getElementById('bmi-score').textContent = score;
+  document.getElementById('bmi-chip').innerHTML = `<span class="chip ${chipCls}">${cat}</span>`;
+  document.getElementById('bmi-marker').style.left = pct + '%';
+  document.getElementById('bmi-desc').textContent = desc;
+  document.getElementById('bmi-result').classList.add('show');
+  addToHistory(`BMI: ${w}kg / ${h*100}cm`, `${score} (${cat})`, 'BMI');
+}
+
+// ════════════════════════════════════════════════════
+//  PERCENTAGE CALCULATOR
+// ════════════════════════════════════════════════════
+let percMode = 0;
+function setPercMode(m) {
+  percMode = m;
+  document.querySelectorAll('.perc-tab').forEach((t,i) => t.classList.toggle('active', i === m));
+  document.querySelectorAll('.perc-mode').forEach((p,i) => p.classList.toggle('active', i === m));
+}
+function calcPerc0() {
+  const pct = parseFloat(document.getElementById('p0-pct').value);
+  const val = parseFloat(document.getElementById('p0-val').value);
+  if (isNaN(pct) || isNaN(val)) { alert('Enter valid numbers.'); return; }
+  const ans = (pct / 100) * val;
+  document.getElementById('p0-ans').textContent = fmtNum(ans);
+  document.getElementById('p0-lbl').textContent = `${pct}% of ${val}`;
+  document.getElementById('p0-result').classList.add('show');
+  addToHistory(`${pct}% of ${val}`, fmtNum(ans), 'Percentage');
+}
+function calcPerc1() {
+  const x = parseFloat(document.getElementById('p1-x').value);
+  const y = parseFloat(document.getElementById('p1-y').value);
+  if (isNaN(x) || isNaN(y) || y === 0) { alert('Enter valid numbers (Y ≠ 0).'); return; }
+  const ans = (x / y) * 100;
+  document.getElementById('p1-ans').textContent = fmtNum(ans) + '%';
+  document.getElementById('p1-lbl').textContent = `${x} is ${fmtNum(ans)}% of ${y}`;
+  document.getElementById('p1-result').classList.add('show');
+  addToHistory(`${x} / ${y} × 100`, fmtNum(ans) + '%', 'Percentage');
+}
+function calcPerc2() {
+  const orig = parseFloat(document.getElementById('p2-orig').value);
+  const nw   = parseFloat(document.getElementById('p2-new').value);
+  if (isNaN(orig) || isNaN(nw) || orig === 0) { alert('Enter valid numbers (Original ≠ 0).'); return; }
+  const ans = ((nw - orig) / Math.abs(orig)) * 100;
+  const dir = ans >= 0 ? '↑ Increase' : '↓ Decrease';
+  document.getElementById('p2-ans').textContent = (ans >= 0 ? '+' : '') + fmtNum(ans) + '%';
+  document.getElementById('p2-lbl').textContent = `${dir} from ${orig} to ${nw}`;
+  document.getElementById('p2-result').classList.add('show');
+  addToHistory(`% change ${orig} → ${nw}`, fmtNum(ans) + '%', 'Percentage');
+}
+
+// ════════════════════════════════════════════════════
+//  DISCOUNT CALCULATOR
+// ════════════════════════════════════════════════════
+function calcDiscount() {
+  const price = parseFloat(document.getElementById('disc-price').value);
+  const pct   = parseFloat(document.getElementById('disc-pct').value);
+  if (isNaN(price) || isNaN(pct) || price <= 0 || pct < 0 || pct > 100) { alert('Enter valid price and discount (0–100%).'); return; }
+  const saved = price * pct / 100;
+  const final = price - saved;
+  document.getElementById('disc-final').textContent = final.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('disc-saved').textContent = saved.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('disc-result').classList.add('show');
+  addToHistory(`${price} − ${pct}%`, `Final: ${final.toFixed(2)}`, 'Discount');
+}
+
+// ════════════════════════════════════════════════════
+//  GPA CALCULATOR
+// ════════════════════════════════════════════════════
+const gradePoints = { 'A+':4.0,'A':4.0,'A-':3.7,'B+':3.3,'B':3.0,'B-':2.7,'C+':2.3,'C':2.0,'C-':1.7,'D+':1.3,'D':1.0,'D-':0.7,'F':0.0 };
+let courseCount = 0;
+function addCourse() {
+  courseCount++;
+  const id = courseCount;
+  const div = document.createElement('div');
+  div.className = 'course-row';
+  div.id = 'course-' + id;
+  div.innerHTML = `
+    <input type="text" class="form-input" placeholder="Course name (optional)" style="font-size:0.85rem;padding:8px 10px;">
+    <select class="course-grade-select" id="grade-${id}">
+      ${Object.keys(gradePoints).map(g=>`<option value="${g}">${g}</option>`).join('')}
+    </select>
+    <input type="number" class="credit-input" id="credit-${id}" value="3" min="0.5" max="6" step="0.5" title="Credits">
+    <button class="remove-btn" onclick="removeCourse(${id})" title="Remove">×</button>
+  `;
+  document.getElementById('gpa-courses').appendChild(div);
+}
+function removeCourse(id) {
+  const el = document.getElementById('course-' + id);
+  if (el) el.remove();
+}
+function calcGPA() {
+  const rows = document.querySelectorAll('#gpa-courses .course-row');
+  if (rows.length === 0) { alert('Please add at least one course.'); return; }
+  let totalPts = 0, totalCreds = 0;
+  let valid = true;
+  rows.forEach(row => {
+    const id = row.id.replace('course-', '');
+    const grade = document.getElementById('grade-' + id).value;
+    const credit = parseFloat(document.getElementById('credit-' + id).value);
+    if (isNaN(credit) || credit <= 0) { valid = false; return; }
+    totalPts += gradePoints[grade] * credit;
+    totalCreds += credit;
+  });
+  if (!valid) { alert('Please enter valid credit hours for all courses.'); return; }
+  const gpa = totalCreds > 0 ? totalPts / totalCreds : 0;
+
+  document.getElementById('gpa-value').textContent = gpa.toFixed(2);
+  document.getElementById('gpa-credits').textContent = totalCreds;
+  document.getElementById('gpa-points').textContent = totalPts.toFixed(2);
+
+  let chipHtml, chipCls;
+  if (gpa >= 3.7)      { chipHtml = 'Summa Cum Laude'; chipCls = 'chip-green'; }
+  else if (gpa >= 3.3) { chipHtml = 'Magna Cum Laude'; chipCls = 'chip-blue'; }
+  else if (gpa >= 3.0) { chipHtml = 'Cum Laude'; chipCls = 'chip-blue'; }
+  else if (gpa >= 2.0) { chipHtml = 'Satisfactory'; chipCls = 'chip-yellow'; }
+  else                  { chipHtml = 'Below Standing'; chipCls = 'chip-red'; }
+  document.getElementById('gpa-chip').innerHTML = `<span class="chip ${chipCls}">${chipHtml}</span>`;
+  document.getElementById('gpa-result').classList.add('show');
+  addToHistory(`GPA (${rows.length} courses, ${totalCreds} credits)`, gpa.toFixed(2), 'GPA');
+}
+function clearGPA() {
+  document.getElementById('gpa-courses').innerHTML = '';
+  document.getElementById('gpa-result').classList.remove('show');
+  courseCount = 0;
+}
+
+// ════════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════════
+renderHistory();
+addCourse(); addCourse(); addCourse(); // seed 3 courses
+</script>
+</body>
+</html>
